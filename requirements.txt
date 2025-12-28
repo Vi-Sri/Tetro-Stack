@@ -1,0 +1,30 @@
+# Tetro-Stack Dependencies
+# Facebook Marketplace iPhone Listings Client
+
+# Core
+python-dotenv==1.0.0
+pydantic==2.5.0
+httpx==0.25.2
+
+# Data Processing
+pandas==2.1.3
+numpy==1.26.2
+
+# Date/Time Handling
+python-dateutil==2.8.2
+
+# Browser Automation (Option 3)
+playwright==1.40.0
+selenium==4.15.2
+webdriver-manager==4.0.1
+
+# API Clients
+requests==2.31.0
+
+# Export
+openpyxl==3.1.2  # Excel export
+
+# Development
+rich==13.7.0     # Beautiful console output
+typer==0.9.0     # CLI interface
+
