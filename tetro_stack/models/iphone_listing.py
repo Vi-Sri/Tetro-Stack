@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 class iPhoneSeries(str, Enum):
     """iPhone series/generation."""
+    IPHONE_17 = "iPhone 17"
     IPHONE_16 = "iPhone 16"
     IPHONE_15 = "iPhone 15"
     IPHONE_14 = "iPhone 14"
@@ -29,6 +30,13 @@ class iPhoneSeries(str, Enum):
 
 class iPhoneModel(str, Enum):
     """iPhone model variants."""
+    # iPhone 17 series
+    IPHONE_17_PRO_MAX = "iPhone 17 Pro Max"
+    IPHONE_17_PRO = "iPhone 17 Pro"
+    IPHONE_17_PLUS = "iPhone 17 Plus"
+    IPHONE_17_AIR = "iPhone 17 Air"
+    IPHONE_17 = "iPhone 17"
+    
     # iPhone 16 series
     IPHONE_16_PRO_MAX = "iPhone 16 Pro Max"
     IPHONE_16_PRO = "iPhone 16 Pro"
