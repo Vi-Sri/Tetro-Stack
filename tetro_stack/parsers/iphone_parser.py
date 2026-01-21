@@ -1,7 +1,7 @@
 """
 iPhone Listing Parser using Gemini AI.
 
-Extracts structured iPhone specifications from unstructured listing text using Google's Gemini Pro model.
+Extracts structured iPhone specifications from unstructured listing text using Google's Gemini model.
 This provides superior accuracy over regex patterns, especially for messy user-generated content.
 """
 
@@ -22,15 +22,21 @@ from ..config import config
 
 logger = logging.getLogger(__name__)
 
-# Try to import google.generativeai
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
+# Try to import the new google.genai package first, fall back to deprecated one
+GENAI_AVAILABLE = False
+GENAI_CLIENT = None
 
-import warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
+try:
+    from google import genai
+    GENAI_AVAILABLE = True
+    GENAI_VERSION = "new"
+except ImportError:
+    try:
+        import google.generativeai as genai_legacy
+        GENAI_AVAILABLE = True
+        GENAI_VERSION = "legacy"
+    except ImportError:
+        pass
 
 
 class iPhoneParser:
@@ -39,40 +45,56 @@ class iPhoneParser:
     Falls back to regex if Gemini is unavailable or fails.
     """
     
-    # Available Gemini models (in order of preference - 2025 models)
+    # Available Gemini models (in order of preference)
     GEMINI_MODELS = [
-        'gemini-2.0-flash',       # Fast and capable
-        'gemini-2.5-flash',       # Latest flash model
-        'gemini-flash-latest',    # Auto-updated to latest
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
     ]
     
     def __init__(self):
         """Initialize the parser with Gemini API key if available."""
         self.use_ai = False
-        self.model = None
+        self.client = None
+        self.model_name = None
         
-        if GEMINI_AVAILABLE and config.gemini_api_key:
+        if GENAI_AVAILABLE and config.gemini_api_key:
             try:
-                genai.configure(api_key=config.gemini_api_key)
-                
-                # Try available models
-                for model_name in self.GEMINI_MODELS:
-                    try:
-                        self.model = genai.GenerativeModel(model_name)
-                        # Quick test to verify model works
-                        self.use_ai = True
-                        logger.info(f"Gemini AI parser initialized with {model_name}")
-                        break
-                    except Exception:
-                        continue
+                if GENAI_VERSION == "new":
+                    # New google.genai package
+                    self.client = genai.Client(api_key=config.gemini_api_key)
+                    
+                    # Try available models
+                    for model_name in self.GEMINI_MODELS:
+                        try:
+                            # Test with a simple query
+                            self.model_name = model_name
+                            self.use_ai = True
+                            logger.info(f"Gemini AI parser initialized with {model_name} (new SDK)")
+                            break
+                        except Exception:
+                            continue
+                else:
+                    # Legacy google.generativeai package
+                    genai_legacy.configure(api_key=config.gemini_api_key)
+                    
+                    for model_name in self.GEMINI_MODELS:
+                        try:
+                            self.client = genai_legacy.GenerativeModel(model_name)
+                            self.model_name = model_name
+                            self.use_ai = True
+                            logger.info(f"Gemini AI parser initialized with {model_name} (legacy SDK)")
+                            break
+                        except Exception:
+                            continue
                         
                 if not self.use_ai:
                     logger.warning("No Gemini models available")
                     
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini AI: {e}")
-        elif not GEMINI_AVAILABLE:
-            logger.info("google-generativeai package not found. Using regex fallback.")
+        elif not GENAI_AVAILABLE:
+            logger.info("google-genai package not found. Using regex fallback.")
         elif not config.gemini_api_key:
             logger.info("GEMINI_API_KEY not set. Using regex fallback.")
             
@@ -101,7 +123,7 @@ class iPhoneParser:
         return self._parse_with_regex(title, description)
     
     def _parse_with_gemini(self, title: str, description: str) -> dict:
-        """Use Gemini Pro to extract structured data."""
+        """Use Gemini to extract structured data."""
         prompt = f"""
         Extract iPhone specifications from this marketplace listing into JSON format.
         
@@ -123,8 +145,16 @@ class iPhoneParser:
         3. Only extract explicitly stated info.
         """
         
-        response = self.model.generate_content(prompt)
-        text = response.text
+        # Generate response based on SDK version
+        if GENAI_VERSION == "new":
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            text = response.text
+        else:
+            response = self.client.generate_content(prompt)
+            text = response.text
         
         # Clean markdown code blocks if present
         if "```json" in text:
@@ -163,8 +193,6 @@ class iPhoneParser:
 
     def _compile_patterns(self):
         """Compile regex patterns for fallback parsing."""
-        # Reuse the patterns from previous implementation
-        # (Simplified here for brevity, full patterns would be copied)
         self.BATTERY_PATTERN = re.compile(r"battery\s*(?:health|life|condition)?[:\s]*(\d{1,3})\s*%", re.IGNORECASE)
         self.STORAGE_PATTERN = re.compile(r"(\d{1,4})\s*(?:gb|tb)", re.IGNORECASE)
         

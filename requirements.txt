@@ -20,6 +20,7 @@ webdriver-manager==4.0.1
 
 # API Clients
 requests==2.31.0
+google-genai>=1.0.0  # Gemini AI for intelligent parsing
 
 # Export
 openpyxl==3.1.2  # Excel export
